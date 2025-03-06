@@ -14,9 +14,18 @@ def make_model(trainImageFolder:str=None, epochs:int=16, saveModelName:str=None,
         If trainImageFolder is passed, it will use the built-in Tensorflow utility for quick loading and automatic labeling. Preferred method over the one found in this project.
         If it's not passed, then you must pass inputData and inputLabels from the preprocess.load_data() function.
     """
+    if trainImageFolder is not None:
+        train_data = image_dataset_from_directory(
+            trainImageFolder,
+            validation_split=0.0,
+            image_size=(48,48),
+        )
+        classNames = train_data.class_names
+        num_classes = len(train_data.class_names)
+
     if os.path.exists(saveModelName):
         print("Loading model...")
-        return load_model(saveModelName)
+        return load_model(saveModelName), classNames
 
     if trainImageFolder is not None:
         train_data = image_dataset_from_directory(
@@ -47,11 +56,11 @@ def make_model(trainImageFolder:str=None, epochs:int=16, saveModelName:str=None,
         Dropout(0.2),
         Flatten(),
         Dense(128, activation='relu'),
-        Dense(num_classes, name='outputs')
+        Dense(num_classes, activation='softmax', name='outputs')
     ])
 
     model.compile(optimizer='adam',
-                  loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                  loss=tf.keras.losses.SparseCategoricalCrossentropy(),
                   metrics=['accuracy'])
     
     print("Training model...")
@@ -98,6 +107,5 @@ def predict_image(model, class_names, img_array=None, imagePath:str=None):
     img_array = tf.expand_dims(img_array, 0)
 
     predictions = model.predict(img_array)
-    score = tf.nn.softmax(predictions[0])
 
-    return class_names[np.argmax(score)], 100*np.max(score)
+    return class_names[np.argmax(predictions)], 100*np.max(predictions)

@@ -17,18 +17,18 @@ if __name__ == '__main__':
         print("Too many arguments! Use -h or help.")
         print_help_exit()
 
-    train_image_folder = str(sys.argv[1])
-    model_name = str(sys.argv[2])
+    train_image_folder = sys.argv[1]
+    model_name = sys.argv[2]
     csvs_folder = "csvs"
 
     import model_works, preprocess
-    if len(sys.argv) == 7 and str(sys.argv[6]) == ("-c" or "custom"):
+    if len(sys.argv) == 7 and sys.argv[6] == ("-c" or "custom"):
         train_csv = "train.csv"
         preprocess.label_folders(train_image_folder, csvs_folder, train_csv)
         train_images, train_labels = preprocess.load_data(f"{csvs_folder}/{train_csv}", train_image_folder)
         model = model_works.make_model(inputData = train_images, inputLabels = train_labels, saveModelName = model_name)
 
-        if str(sys.argv[4]) == ("-v" or "validate"):
+        if sys.argv[4] == ("-v" or "validate"):
             validate_csv = "validate.csv"
             preprocess.label_folders(validation_image_folder, csvs_folder, validate_csv)
             validation_images, validation_labels = preprocess.load_data(f"{csvs_folder}/{validate_csv}", validation_image_folder)
@@ -38,12 +38,12 @@ if __name__ == '__main__':
 
     epochs = 16
     if len(sys.argv) == 4:
-        epochs = sys.argv[3]
+        epochs = int(sys.argv[3])
 
     model, class_names = model_works.make_model(train_image_folder, epochs, model_name)
 
-    if len(sys.argv) == 6 and str(sys.argv[4]) == ("-v" or "validate"):
-        validation_image_folder = str(sys.argv[5])
+    if len(sys.argv) == 6 and sys.argv[4] == ("-v" or "validate"):
+        validation_image_folder = sys.argv[5]
         test_loss, test_acc = model_works.validate(model, validation_image_folder)
         print(f"Stats for model {model_name}:\nTest loss: {test_loss}\nTest accuracy: {test_acc}")
         exit()
@@ -59,7 +59,11 @@ if __name__ == '__main__':
         im = im.resize((48,48))
         img_array = np.array(im)
 
-        print(model_works.predict_image(model, class_names, img_array))
+        height, width, _ = frame.shape
+
+        class_predicted, confidence = model_works.predict_image(model, class_names, img_array)
+
+        cv2.putText(frame, f"{class_predicted}: {confidence:.2f}%", (width//2-width//4, height//2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (83, 247, 182), 2)
 
         cv2.imshow("Capture", frame)
         key = cv2.waitKey(1)
