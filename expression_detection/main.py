@@ -5,14 +5,13 @@ def args_parse():
     argparser = argparse.ArgumentParser(description="Emotion recognition over video.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     model_args = argparser.add_argument_group("model")
-    mutex_args = argparser.add_mutually_exclusive_group(required=True)
     optional_args = argparser.add_argument_group("other")
 
     model_args.add_argument("model", help="loads an existing model (e.g. mymodel.keras) if found, otherwise it trains a model and saves it with the given name")
     model_args.add_argument("train", help="used to load the training dataset and its classes")
     model_args.add_argument("-e", "--epochs", help="number of epochs to train the model for", default=16)
-    mutex_args.add_argument("-s", "--source", help="can be an integer to use a live video feed, or a path to use a pre-recorded video")
-    mutex_args.add_argument("-v", "--validate", help="will validate the model instead of predicting per frame; the path to the validation dataset needs to be passed")
+    model_args.add_argument("-v", "--validate", help="will validate the model instead of predicting per frame; the path to the validation dataset needs to be passed")
+    optional_args.add_argument("-s", "--source", help="can be an integer to use a live video feed, or a path to use a pre-recorded video")
     optional_args.add_argument("-fc", "--cascade", help="loads a pre-trained face cascade file", default="haarcascade_frontalface_alt.xml")
     optional_args.add_argument("-c", "--custom", help="will use a custom data loading method over the Tensorflow one; warning: it's very slow and usage is not recommended", action="store_true", default=False)
 
@@ -31,7 +30,7 @@ if __name__ == '__main__':
 
     validate = args.validate
 
-    cascade = str(args.cascade)
+    cascade = args.cascade
 
     custom_loading = args.custom
 
@@ -49,14 +48,12 @@ if __name__ == '__main__':
             validation_images, validation_labels = preprocess.load_data(f"{csvs_folder}/{validate_csv}", validate)
             test_loss, test_acc = model_works.validate_model(model, validateData = validation_images, validateLabels = validation_labels)
             print(f"Stats for model {model_name}:\nTest loss: {test_loss}\nTest accuracy: {test_acc}")
-            exit()
 
     model, class_names = model_works.make_model(train_image_folder, epochs, model_name)
 
     if validate:
         test_loss, test_acc = model_works.validate(model, validate)
         print(f"Stats for model {model_name}:\nTest loss: {test_loss}\nTest accuracy: {test_acc}")
-        exit()
 
     import cv2
     from PIL import Image
@@ -87,7 +84,6 @@ if __name__ == '__main__':
             cv2.putText(frame_orig, f"{class_predicted}: {confidence:.2f}%", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (247, 83, 182), 1)
 
         cv2.imshow("Capture", frame_orig)
-        cv2.imwrite(f"{source}_predictions.jpg", frame_orig)
         key = cv2.waitKey(1)
         if key == ord('q'):
             break
