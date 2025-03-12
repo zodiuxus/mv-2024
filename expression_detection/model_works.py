@@ -40,7 +40,7 @@ def make_model(trainImageFolder:str=None, epochs:int=16, saveModelName:str=None,
     train_data = train_data.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
 
     model = Sequential([
-        Input(shape=(48, 48,3)),
+        Input(shape=(48, 48,1)),
         Rescaling(1./255),
         Conv2D(128, 9, padding='same', activation='relu'),
         MaxPooling2D(),
