@@ -4,6 +4,7 @@ from tensorflow.keras.utils import image_dataset_from_directory
 import tensorflow as tf
 import numpy as np
 import os
+import datetime
 
 def make_model(trainImageFolder:str=None, epochs:int=16, saveModelName:str=None, inputData=None, inputLabels=None):
     """
@@ -17,29 +18,23 @@ def make_model(trainImageFolder:str=None, epochs:int=16, saveModelName:str=None,
     if trainImageFolder is not None:
         train_data = image_dataset_from_directory(
             trainImageFolder,
+            color_mode='grayscale',
+            label_mode='categorical',
             validation_split=0.0,
             image_size=(48,48),
         )
         classNames = train_data.class_names
         num_classes = len(train_data.class_names)
 
-    if os.path.exists(saveModelName):
-        print("Loading model...")
-        return load_model(saveModelName), classNames
-
-    if trainImageFolder is not None:
-        train_data = image_dataset_from_directory(
-            trainImageFolder,
-            validation_split=0.0,
-            image_size=(48,48),
-        )
-        classNames = train_data.class_names
-        num_classes = len(train_data.class_names)
-    
     else:
         train_data = inputData
         classNames = None
         num_classes = np.unique(inputLabels)
+
+    if os.path.exists(saveModelName):
+        print("Loading model...")
+        return load_model(saveModelName), classNames
+    
     
     AUTOTUNE = tf.data.AUTOTUNE
     train_data = train_data.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
@@ -47,20 +42,23 @@ def make_model(trainImageFolder:str=None, epochs:int=16, saveModelName:str=None,
     model = Sequential([
         Input(shape=(48, 48,3)),
         Rescaling(1./255),
-        Conv2D(16, 3, padding='same', activation='relu'),
+        Conv2D(128, 9, padding='same', activation='relu'),
         MaxPooling2D(),
-        Conv2D(32, 3, padding='same', activation='relu'),
+        Dropout(0.5),
+        Conv2D(256, 6, activation='relu'),
         MaxPooling2D(),
-        Conv2D(64, 3, padding='same', activation='relu'),
+        Dropout(0.5),
+        Conv2D(512, 3, activation='relu'),
         MaxPooling2D(),
-        Dropout(0.2),
+        Dropout(0.5),
         Flatten(),
         Dense(128, activation='relu'),
+        Dense(64, activation='relu'),
         Dense(num_classes, activation='softmax', name='outputs')
     ])
 
     model.compile(optimizer='adam',
-                  loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+                  loss=tf.keras.losses.CategoricalCrossentropy(),
                   metrics=['accuracy'])
     
     print("Training model...")
@@ -88,11 +86,13 @@ def validate_model(model, validateImagePath:str=None, validateData=None, validat
             )
 
             test_loss, test_acc = model.evaluate(validation_data, verbose=2)
-            return (test_loss, test_acc)
 
     else:
         test_loss, test_acc = model.evaluate(validateData, validateLabels, verbose=2)
-        return (test_loss, test_acc)
+
+    with open('validation_results.txt', 'a') as f:
+        f.write(f"Validation results on {datetime.datetime.now()}:\nAccuracy: {test_acc}, Loss: {test_loss}\n")
+    return test_loss, test_acc
 
 def predict_image(model, class_names, img_array=None, imagePath:str=None):
     """
