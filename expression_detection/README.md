@@ -27,27 +27,30 @@ This section contains explanations of snippets of code and why I chose to make t
 Arguably the most important one is the shape of the model itself:
 ```python
 model = Sequential([
-        Input(shape=(48, 48,3)),
+        Input(shape=(48, 48, 1)),
         Rescaling(1./255),
-        Conv2D(16, 3, padding='same', activation='relu'),
+        Conv2D(128, 9, activation='relu'),
         MaxPooling2D(),
-        Conv2D(32, 3, padding='same', activation='relu'),
+        Dropout(0.5),
+        Conv2D(256, 6, activation='relu'),
         MaxPooling2D(),
-        Conv2D(64, 3, padding='same', activation='relu'),
+        Dropout(0.5),
+        Conv2D(512, 3, activation='relu'),
         MaxPooling2D(),
-        Dropout(0.2),
+        Dropout(0.5),
         Flatten(),
         Dense(128, activation='relu'),
+        Dense(64, activation='relu'),
         Dense(num_classes, activation='softmax', name='outputs')
-        ])
+    ])
 ```
-The images are 48x48, technically in grayscale, are loaded as having 3 channels, otherwise I wouldn't be able to use Conv2D or MaxPooling2D. Past iterations of the model had varying combinations - (10, 3), (8, 4), (128, 5) - for the filter and kernel size for Conv2D, but I ultimately decided to keep the kernel to 3 (takes a 3x3 window of pixels) on each step and the 16, 32, and 64 filters are powers of 2, and I like said numbers. In the end, they proved to be the correct choice, and though there are some incorrect predictions, in most other cases it detects the emotion correctly, with a high level of confidence (shown below).
+The images are 48x48. Past iterations of the model had varying combinations - (512, 3), (8, 9), (128, 5) - for the filter and kernel size for Conv2D, but I ultimately decided to keep the kernel to 9, 6, and 3 (takes a 3x3, 6x6, and 9x9 window of pixels) on each step and the 128, 256, and 512 filters are powers of 2, and I like said numbers. The layers went through many iterations, most of which aren't in the commit history, but the model seems to predict just fine with the current layers. It does, however, still have issues, and I will go over them below.
 
 `Rescaling(1./255)` is used to normalize the pixel values of every image before the rest of the processing continues.
 
 `MaxPooling2D()` is a common layer to add, and by default it operates over a 2x2 window, taking the max value of each window.
 
-`Dropout(0.2)` is used to prevent overfitting by turning some inputs to 0 at the given rate (0.2).
+`Dropout(0.5)` is used to prevent overfitting by turning some inputs to 0 at the given rate (0.5). We will see how a large value affects the results later.
 
 The final dense layer is practically mandatory which normalizes the values of the previous input to ensure a sum of probabilities of all classes to equal 1, and outputs the amount of classes we have.
 
@@ -87,6 +90,32 @@ Do note that while *somewhat* faster, its primary use is to validate the model u
 I haven't measured the total time it takes for both of these to complete, but it takes around 3-5 minutes to save to a .csv and then load the images based on it.
 
 ## Statistics and analysis
+### Predictions
+![Predictions grid](./showcase/labeled_image_grid.png)
+
+As you can see, these images hold the outline for the area in which a face was detected, and has a predicted class as well as a confidence level at the top. For some images, it may be somewhat difficult to tell due to the choice of colors (especially for the surprised face) since these photos are of varying dimensions and quality. I made sure to leave the original images in the showcase folder if you wish to look at them closely.
+
+I made sure to include predictions of different confidence levels and those that had a mismatch between the predicted and true class. These predictions might coincide with the confusion matrices.
+
+### Confusion matrix
+I decided to train a few models with different parameters and epochs for the sake of testing. Most of them gave me similar results when it came to the CM, so here is the one with 256 epochs:
+
+![Confusion matrix for 256 epochs](./showcase/cm_256.png)
+
+As you can see, the results are catastrophic. There are no two ways about it. This is the primary reason I kept tinkering with the model's parameters before I came to a set of numbers I deemed... mostly satisfactory.
+
+At first, I was simply baffled by the matrix, but upon further research, other attempts at making an emotion recognition model based on this dataset yielded similar results. Once I saw their models' layers, I thought that either 
+ - The model wasn't optimized for the dataset or
+ - The dataset isn't the best (considering the images are 48x48 - extremely pixelated - sometimes even I had trouble telling what was shown)
+
+There was little I could do in regards to this, as the many variations of the model I had made little to no impact on the results, *except* for the one whose snippet is at the very top of the readme. In truth, the latest iteration only reduced the loss per epoch, but that's only at the cost of having a large `Dropout` value.
+
+### Graphs
+![Stats grid for models](./showcase/stats_grid.png)
+
+The blue line represents the statistics for the 1024 epochs variation, the pink is for the 128 epochs variation, and the green is for 256 epochs. As you can see, the first two variations have similar graphs, both capping out at about 60% accuracy, while their loss skyrockets after the first 30 epochs. The 3rd variation has an accuracy of approximately 50% at its final epoch.
+
+I suppose that one advantage to having a large dropout value in multiple places is that the loss per epoch has a potential equilibrium at 1.0, and its accuracy has yet room to grow. Perhaps if this variation of the model is ran for another 256, or even up to 1024 or more epochs, it will cleanly surpass the previous two, and potentially return a better confusion matrix.
 
 ### Dataset
 The dataset was taken from [kaggle](https://www.kaggle.com/datasets/jonathanoheix/face-expression-recognition-dataset).
